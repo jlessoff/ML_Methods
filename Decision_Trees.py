@@ -70,61 +70,61 @@ print(mse_learn)
 plt.plot(mse_test)
 plt.title("Test Mean Squared Error mean_sample_split")
 plt.show()
-
-plt.plot(mse_learn)
-plt.title("Training Mean Squared Error mean_sample_split")
-plt.show()
-
-#Question 5 Test in the same way the effect of max_depth parameter.
-mse_test=[]
-mse_learn=[]
-for i in range(2,40):
-    regr_1 = DecisionTreeRegressor(max_depth=i)
-    regr_1.fit(X_tr, Y_tr)
-    # Predict
-    y_1 = regr_1.predict(X_test)
-    # Plot the results
-    # accuracy check using MSE
-    mse1 = mean_squared_error(Y_test, y_1)
-    mse_test.append(mse1)
-    y_training_prediction = regr_1.predict(X_tr)
-    mse_train = mean_squared_error(Y_tr, y_training_prediction)
-    mse_learn.append(mse_train)
-print(mse_test)
-plt.plot(mse_test)
-plt.title("Training Mean Squared Error max_depth")
-plt.show()
-
-print(mse_learn)
-plt.plot(mse_learn)
-plt.title("Training Mean Squared Error max_depth")
-plt.show()
-
-#Pruning and directly stopping the tree will have similar results.  However, pruning will yield slightly better accuracy because early stopping could cause short-sightedness because there could be a large improvement at the end of the tree creation
-print("Pruning and directly stopping the tree will have similar results.  However, pruning will yield slightly better accuracy because early stopping could cause short-sightedness because there could be a large improvement at the end of the tree creation")
-
-
-#Question 5 Apply the same strategy to the wine data set from exercise 1 and compare the effects of pruning with those of controlling directly the stopping criteria.
-path=regr_1.cost_complexity_pruning_path(X_tr,Y_tr)
-ccp_alphas, impurities = path.ccp_alphas, path.impurities
-acc_test=[]
-acc_train=[]
-
-for alpha in range(0,len(ccp_alphas)):
-    clf= DecisionTreeRegressor(random_state=42, ccp_alpha= ccp_alphas[alpha])
-    clf.fit(X_tr, Y_tr)
-    tree_prediction_test = clf.predict(X_test)
-    accuracy_test=mean_squared_error(Y_test,tree_prediction_test)
-    acc_test.append(accuracy_test)
-
-    tree_prediction_train = clf.predict(X_tr)
-    accuracy_train=mean_squared_error(Y_tr,tree_prediction_train)
-    acc_train.append(accuracy_train)
-plt.plot(acc_test)
-plt.title("Accuracy Plot for Test Data")
-plt.show()
-
-plt.plot(acc_train)
-plt.title("Accuracy Plot for Training Data")
-
-plt.show()
+#
+# plt.plot(mse_learn)
+# plt.title("Training Mean Squared Error mean_sample_split")
+# plt.show()
+#
+# #Question 5 Test in the same way the effect of max_depth parameter.
+# mse_test=[]
+# mse_learn=[]
+# for i in range(2,40):
+#     regr_1 = DecisionTreeRegressor(max_depth=i)
+#     regr_1.fit(X_tr, Y_tr)
+#     # Predict
+#     y_1 = regr_1.predict(X_test)
+#     # Plot the results
+#     # accuracy check using MSE
+#     mse1 = mean_squared_error(Y_test, y_1)
+#     mse_test.append(mse1)
+#     y_training_prediction = regr_1.predict(X_tr)
+#     mse_train = mean_squared_error(Y_tr, y_training_prediction)
+#     mse_learn.append(mse_train)
+# print(mse_test)
+# plt.plot(mse_test)
+# plt.title("Training Mean Squared Error max_depth")
+# plt.show()
+#
+# print(mse_learn)
+# plt.plot(mse_learn)
+# plt.title("Training Mean Squared Error max_depth")
+# plt.show()
+#
+# #Pruning and directly stopping the tree will have similar results.  However, pruning will yield slightly better accuracy because early stopping could cause short-sightedness because there could be a large improvement at the end of the tree creation
+# print("Pruning and directly stopping the tree will have similar results.  However, pruning will yield slightly better accuracy because early stopping could cause short-sightedness because there could be a large improvement at the end of the tree creation")
+#
+#
+# #Question 5 Apply the same strategy to the wine data set from exercise 1 and compare the effects of pruning with those of controlling directly the stopping criteria.
+# path=regr_1.cost_complexity_pruning_path(X_tr,Y_tr)
+# ccp_alphas, impurities = path.ccp_alphas, path.impurities
+# acc_test=[]
+# acc_train=[]
+#
+# for alpha in range(0,len(ccp_alphas)):
+#     clf= DecisionTreeRegressor(random_state=42, ccp_alpha= ccp_alphas[alpha])
+#     clf.fit(X_tr, Y_tr)
+#     tree_prediction_test = clf.predict(X_test)
+#     accuracy_test=mean_squared_error(Y_test,tree_prediction_test)
+#     acc_test.append(accuracy_test)
+#
+#     tree_prediction_train = clf.predict(X_tr)
+#     accuracy_train=mean_squared_error(Y_tr,tree_prediction_train)
+#     acc_train.append(accuracy_train)
+# plt.plot(acc_test)
+# plt.title("Accuracy Plot for Test Data")
+# plt.show()
+#
+# plt.plot(acc_train)
+# plt.title("Accuracy Plot for Training Data")
+#
+# plt.show()
