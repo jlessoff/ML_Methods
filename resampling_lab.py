@@ -100,10 +100,8 @@ sns.kdeplot(data=dataframe)
 
 
 dataframe1=pd.DataFrame()
-print(dataframe1)
 dataframe1['name']=name_1
 dataframe1['mse']=i_list_1
-print(dataframe1)
 sns.kdeplot(data=dataframe1)
 plt.show()
 
