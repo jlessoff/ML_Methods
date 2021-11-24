@@ -19,42 +19,60 @@ rice_class = rice_Y.unique()
 rice_features = rice_X.columns
 gs = GridSearchCV(
     DecisionTreeClassifier(random_state=40),
-    param_grid={"min_samples_split": range(2, 50, 1)},
-    scoring=make_scorer(accuracy_score),
-    # refit=True
+    param_grid={"min_samples_split": range(2, 200)},
+    scoring='accuracy',
 )
 gs.fit(rice_X, rice_Y)
 results = gs.cv_results_
 # print(results)
-print(gs.best_params_)
-
+print('bestparam',gs.best_params_)
+print('bestscore',gs.best_score_)
+#
 for key,value in results.items():
     print(key)
 # #
-scores=list(results)[11:14]
-scores = {k: results[k] for k in scores}
+# scores=list(results)[11:13]
+# scores = {k: results[k] for k in scores}
 # for key,value in (scores.items()):
-#     ah=list(range(2, 50))
-#     plt.plot(ah,value)
+#     plt.plot(value)
 #     plt.title(key)
-#     print(key,value)
 #     plt.show()
-print('ah',gs.best_score_)
+
+
 
 Xtrain, Xval, ytrain, yval = train_test_split(rice_X, rice_Y,
-                                              train_size=0.7, random_state=42)
+                                              train_size=0.7, random_state=42, shuffle=True)
 gs = GridSearchCV(
     DecisionTreeClassifier(random_state=40),
-    param_grid={"min_samples_split": range(2, 50, 1)},
-    scoring=make_scorer(accuracy_score),
+    param_grid={"min_samples_split": range(2, 200)},
+    scoring='accuracy',
     cv=5
-    # refit=True
 )
 gs.fit(Xtrain, ytrain)
 results = gs.cv_results_
-print(gs.best_params_)
+scores=list(results)[11:13]
+scores = {k: results[k] for k in scores}
+# for key,value in (scores.items()):
+#     plt.plot(value)
+#     plt.title(key)
+#     plt.show()
 scores=list(results)[11:14]
 scores = {k: results[k] for k in scores}
-print('ah',gs.best_score_)
+print('bestparam',gs.best_params_)
+print('bestscore',gs.best_score_)
+
 y_pred = gs.best_estimator_.predict(Xval)
 print(confusion_matrix(yval, y_pred))
+
+for i in range(1,20):
+    Xtrain, Xval, ytrain, yval = train_test_split(rice_X, rice_Y,
+                                                  train_size=0.7, random_state=i, shuffle=True)
+    gs = GridSearchCV(
+        DecisionTreeClassifier(random_state=40),
+        param_grid={"min_samples_split": range(2, 200)},
+        scoring='accuracy',
+        cv=5
+    )
+    gs.fit(Xtrain, ytrain)
+    print('bestparam for ',i,'random state:', gs.best_params_)
+    print('bestscore for ',i,'random state:', gs.best_score_)

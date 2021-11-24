@@ -17,7 +17,7 @@ i_list=[]
 average_score=[]
 #question 4
 for i in range(2,100):
-    kf = KFold(n_splits=5, shuffle=True, random_state=4)
+    kf = KFold(n_splits=5, shuffle=True, random_state=70)
     score = cross_val_score(DecisionTreeRegressor(min_samples_split=i, random_state=42), X, y, cv= kf, scoring='neg_mean_squared_error')
     list=[]
     for l in score:
@@ -32,12 +32,13 @@ name_1=[]
 i_list_1=[]
 for i in range(0,20):
     kf = KFold(n_splits=5, shuffle=True, random_state=i)
-    score = cross_val_score(DecisionTreeRegressor(min_samples_split=5, random_state=42), X, y, cv= kf, scoring='neg_mean_squared_error')
-    i_list_1.append((statistics.mean(-score)))
-    name_1.append('fold')
+    score = cross_val_score(DecisionTreeRegressor(min_samples_split=5, random_state=4), X, y, cv= kf, scoring='neg_mean_squared_error')
+    for l in score:
+        df=(i,l)
+        i_list_1.append((statistics.mean(-score)))
+        name_1.append('fold')
 average=statistics.mean(i_list_1)
 ste=statistics.stdev(i_list_1)
-print(i_list_1)
 X=wines[wines.columns[1:12]]
 #target variable
 y=wines['quality']
@@ -53,12 +54,12 @@ X=wines[wines.columns[1:12]]
 y=wines['quality']
 from sklearn.model_selection import train_test_split
 Xtrain, Xval, ytrain, yval=train_test_split(X,y,
-                                                    train_size=0.8, random_state=4)
+                                                    train_size=0.8, random_state=70)
 
 ##QUESTION 4
 mse_val=[]
 for i in range(2,100):
-    regr_1 = DecisionTreeRegressor(min_samples_split=i,random_state=42)
+    regr_1 = DecisionTreeRegressor(min_samples_split=i,random_state=4)
     regr_1.fit(Xtrain, ytrain)
     # Predict
     yvalid = regr_1.predict(Xval)
@@ -76,33 +77,26 @@ for i in range(0, 100):
 
     Xtrain, Xval, ytrain, yval = train_test_split(X, y,
                                                   train_size=0.8, random_state=i)
-    regr_1 = DecisionTreeRegressor(min_samples_split=5, random_state=42)
+    regr_1 = DecisionTreeRegressor(min_samples_split=5, random_state=4)
     regr_1.fit(Xtrain, ytrain)
     # Predict
     yvalid = regr_1.predict(Xval)
     # accuracy check using MSE
     mse1 = mean_squared_error(yval, yvalid)
-    i_list.append(mse1)
-    name.append("split")
+    i_list_1.append(mse1)
+    name_1.append("split")
 average=statistics.mean(mse_val)
 ste=statistics.stdev(mse_val)
-print(i_list)
-print(name)
-print(len(i_list))
-print(len(name))
 # # question 5
 dataframe=pd.DataFrame()
-print(dataframe)
 dataframe['name']=name
 dataframe['mse']=i_list
-print(dataframe)
 sns.kdeplot(data=dataframe)
-
 
 dataframe1=pd.DataFrame()
 dataframe1['name']=name_1
 dataframe1['mse']=i_list_1
-sns.kdeplot(data=dataframe1)
+sns.kdeplot(data=dataframe1, x=i_list_1 ,hue="name", legend=True)
 plt.show()
 
 
