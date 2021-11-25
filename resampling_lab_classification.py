@@ -19,7 +19,7 @@ rice_class = rice_Y.unique()
 rice_features = rice_X.columns
 gs = GridSearchCV(
     DecisionTreeClassifier(random_state=40),
-    param_grid={"min_samples_split": range(2, 200)},
+    param_grid={"min_samples_split": range(2, 1000)},
     scoring='accuracy',
 )
 gs.fit(rice_X, rice_Y)
@@ -31,12 +31,12 @@ print('bestscore',gs.best_score_)
 for key,value in results.items():
     print(key)
 # #
-# scores=list(results)[11:13]
-# scores = {k: results[k] for k in scores}
-# for key,value in (scores.items()):
-#     plt.plot(value)
-#     plt.title(key)
-#     plt.show()
+scores=list(results)[11:12]
+scores = {k: results[k] for k in scores}
+for key,value in (scores.items()):
+    plt.plot(value)
+    plt.title(key)
+    plt.show()
 
 
 
@@ -44,7 +44,7 @@ Xtrain, Xval, ytrain, yval = train_test_split(rice_X, rice_Y,
                                               train_size=0.7, random_state=42, shuffle=True)
 gs = GridSearchCV(
     DecisionTreeClassifier(random_state=40),
-    param_grid={"min_samples_split": range(2, 200)},
+    param_grid={"min_samples_split": range(2, 1000)},
     scoring='accuracy',
     cv=5
 )

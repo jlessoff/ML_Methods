@@ -17,13 +17,14 @@ i_list=[]
 average_score=[]
 #question 4
 for i in range(2,100):
-    kf = KFold(n_splits=5, shuffle=True, random_state=70)
+    kf = KFold(n_splits=5, shuffle=True, random_state=0)
     score = cross_val_score(DecisionTreeRegressor(min_samples_split=i, random_state=42), X, y, cv= kf, scoring='neg_mean_squared_error')
     list=[]
     for l in score:
         df=(i,l)
         average_score.append(-l)
         i_list.append(i)
+        print(i,l)
 sns.relplot(x=i_list, y=average_score, kind='line')
 import matplotlib.pyplot as plt
 # plt.show()
@@ -33,10 +34,12 @@ i_list_1=[]
 for i in range(0,20):
     kf = KFold(n_splits=5, shuffle=True, random_state=i)
     score = cross_val_score(DecisionTreeRegressor(min_samples_split=5, random_state=4), X, y, cv= kf, scoring='neg_mean_squared_error')
+    print(score)
     for l in score:
         df=(i,l)
         i_list_1.append((statistics.mean(-score)))
         name_1.append('fold')
+        print(l)
 average=statistics.mean(i_list_1)
 ste=statistics.stdev(i_list_1)
 X=wines[wines.columns[1:12]]
@@ -98,8 +101,8 @@ dataframe1['name']=name_1
 dataframe1['mse']=i_list_1
 sns.kdeplot(data=dataframe1, x=i_list_1 ,hue="name", legend=True)
 plt.show()
-
-
+print(dataframe)
+print(dataframe1)
 ##TEXT ANSWERS:
 print('Question 3: the results for the cross validation approach shows a more stable descent in MSE than for the test/train approach.  This would be recommended')
 print('Question 4: using cross validation results in a much more stable result than using test/train across many random states.  The MSE results obtained from test/train are very variable and depend a lot on the data that is split.  This is mitigated by breaking into 5 different folds')
