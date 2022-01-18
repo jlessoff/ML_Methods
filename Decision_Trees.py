@@ -66,6 +66,11 @@ for i in range(2,100):
 print(mse_test)
 print(mse_learn)
 
+
+y_pred = gs.best_estimator_.predict(Xval)
+print(confusion_matrix(yval, y_pred))
+
+
 #Plotting curve for test and learning data
 plt.plot(mse_test)
 plt.title("Test Mean Squared Error mean_sample_split")
