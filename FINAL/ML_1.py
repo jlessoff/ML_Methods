@@ -38,13 +38,15 @@ club=pd.read_csv("code_CLUB.csv")
 pcsesemap=pd.read_csv("pcsese2017-map.csv")
 code_job=pd.read_csv('code_Job_42.csv')
 code_job_desc=pd.read_csv('code_job_desc.csv')
-geohash=pd.read_csv('geoshahes.csv')
+activity=pd.read_csv('Data-Table 1.csv')
+activity=activity[['Code',"Taux"]]
 
-print(code_job)
 #merge data to get all fields relating to jobs,sports, city information
 learn=pd.merge(learn,learn_jobs,on='UID',how='left')
 learn=pd.merge(learn,learn_sport,on='UID',how='left')
 learn=pd.merge(learn,city_admin,on='INSEE_CODE',how='left')
+learn=pd.merge(learn,activity,left_on='INSEE_CODE',right_on='Code',how='left')
+learn= learn.drop(columns='Code')
 learn=pd.merge(learn,departments,on='dep',how='left')
 learn=pd.merge(learn,regions,on='REG',how='left')
 learn=pd.merge(learn,latlong,on='INSEE_CODE',how='left')
@@ -55,10 +57,9 @@ learn=pd.merge(learn,code_job,left_on='Job_42',right_on='Code',how='left')
 learn= learn.drop(columns='Code')
 learn=pd.merge(learn,code_job_desc,left_on='job_desc',right_on='Code',how='left')
 learn=pd.merge(learn,pcsesemap,left_on='Code',right_on='N3',how='left')
-learn=pd.merge(learn,geohash,on='UID', how='left')
 #
 learn['club_indicator']= np.where(learn['Categorie'].isna(),0,1)
-learn['emp_status_indicator']= np.where(learn['ACTIVITY_TYPE']=='type1-1',0,1)
+# learn['emp_status_indicator']= np.where(learn['ACTIVITY_TYPE']=='type1-1',0,1)
 learn['Is_student']= np.where(learn['Is_student']==False,0,1)
 
 learn=learn.set_index('UID')
@@ -73,6 +74,8 @@ test_sport=pd.read_csv("test_dataset_sport.csv")
 test_emp=pd.read_csv("test_dataset_Emp.csv")
 test=pd.merge(test,test_jobs,on='UID',how='left')
 test=pd.merge(test,test_sport,on='UID',how='left')
+test=pd.merge(test,activity,left_on='INSEE_CODE',right_on='Code',how='left')
+test= test.drop(columns='Code')
 test=pd.merge(test,city_admin,on='INSEE_CODE',how='left')
 test=pd.merge(test,departments,on='dep',how='left')
 test=pd.merge(test,regions,on='REG',how='left')
@@ -86,7 +89,7 @@ test=pd.merge(test,code_job_desc,left_on='job_desc',right_on='Code',how='left')
 test=pd.merge(test,pcsesemap,left_on='Code',right_on='N3',how='left')
 
 test['club_indicator']= np.where(test['Categorie'].isna(),0,1)
-test['emp_status_indicator']= np.where(test['ACTIVITY_TYPE']=='type1-1',0,1)
+# test['emp_status_indicator']= np.where(test['ACTIVITY_TYPE']=='type1-1',0,1)
 test['Is_student']= np.where(test['Is_student']==False,0,1)
 
 
@@ -97,9 +100,10 @@ test= test.fillna(0)
 cat_vars=['Nom fédération','Is_student',"Nom catégorie",'Code','N3','N2','N1','INSEE_CODE','dep','FAMILTY_TYPE','Sex','Employee_count','Job_42','DEGREE','ACTIVITY_TYPE','job_condition','Job_category','Terms_of_emp','economic_sector','JOB_DEP','job_desc','Nom de la commune','Nom du département','city_type','REG','Nom de la région','employer_category','Categorie']
 
 learn[cat_vars] = learn[cat_vars].astype(str)
-cont_vars=['target','emp_status_indicator','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','X','Y','club_indicator']
+cont_vars=['Taux','target','ACTIVITY_TYPE','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','X','Y','club_indicator']
 #
-#
+learn['Taux']=learn['Taux'].astype(float)
+
 #make 'na' category
 learn[cat_vars]= np.where(learn[cat_vars]==0,'na',learn[cat_vars])
 test[cat_vars]= np.where(test[cat_vars]==0,'na',test[cat_vars])
@@ -109,16 +113,16 @@ label = preprocessing.LabelEncoder()
 onehotlabels_cat = learn[cat_vars].apply(label.fit_transform)
 plt.figure(figsize=(16, 6))
 
-# #
-# heatmap = sns.heatmap(onehotlabels_cat.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
-# heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
-# plt.show()
-# #
-# #
-# onehotlabels_cont = learn[cont_vars].apply(label.fit_transform)
-# heatmap = sns.heatmap(onehotlabels_cont.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
-# heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
-# plt.show()
+#
+heatmap = sns.heatmap(onehotlabels_cat.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
+heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
+plt.show()
+#
+#
+onehotlabels_cont = learn[cont_vars].apply(label.fit_transform)
+heatmap = sns.heatmap(onehotlabels_cont.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
+heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
+plt.show()
 #
 # # #drop perfectly correlated variables
 # test= test.drop(columns=['Code','INSEE_CODE','N3','N2','X','Y'])#
@@ -126,10 +130,10 @@ plt.figure(figsize=(16, 6))
 #
 # cat_vars=['Nom fédération','Is_student',"Nom catégorie",'N1','dep','FAMILTY_TYPE','Sex','Employee_count','Job_42','DEGREE','ACTIVITY_TYPE','job_condition','Job_category','Terms_of_emp','economic_sector','JOB_DEP','job_desc','Nom de la commune','Nom du département','city_type','REG','Nom de la région','employer_category','Categorie']
 
-cat_vars=['Nom fédération','Is_student',"Nom catégorie",'N1','dep','FAMILTY_TYPE','Sex','Employee_count','club_indicator','Job_42','DEGREE','ACTIVITY_TYPE','job_condition','Job_category','Terms_of_emp','economic_sector','JOB_DEP','Nom du département','city_type','REG','Nom de la région','employer_category','Categorie']
-cont_vars=['target','emp_status_indicator','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long']
+cat_vars=['Nom fédération','Is_student',"Nom catégorie",'N1','dep','FAMILTY_TYPE','Sex','Employee_count','club_indicator','Job_42','DEGREE','job_condition','Terms_of_emp','economic_sector','JOB_DEP','city_type','REG','Nom de la région','Categorie']
+cont_vars=['target','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','Taux']
 learn[cat_vars] = learn[cat_vars].astype(str)
-
+learn['Taux']=learn['Taux'].astype(float)
 # onehotlabels_cat = learn[cat_vars].apply(label.fit_transform)
 # onehotlabels_cont = learn[cont_vars].apply(label.fit_transform)
 # #
@@ -153,32 +157,56 @@ learn[cat_vars] = learn[cat_vars].astype(str)
 # # learn.to_csv('learn.csv')
 # # # create encoding
 #
+
+
 OH_encoder = OneHotEncoder(sparse=False ,handle_unknown='ignore')
 encoded_columns_learn =    OH_encoder.fit_transform(learn[cat_vars])
 # encoded_columns_test =    OH_encoder.transform(test[cat_vars])
 cont_learn=learn[cont_vars].to_numpy()
 processed_data = np.concatenate([cont_learn, encoded_columns_learn], axis=1)
 print(processed_data)
-Y=processed_data[:,0]
+
+
+# Scale data and do k-means classification
+mms = StandardScaler()
+transformed= mms.fit(processed_data)
+data_transformed = (transformed)
+Sum_of_squared_distances = []
+kmeans = KMeans(n_clusters=4,random_state=1)
+clusters = kmeans.fit_predict(processed_data)
+# clusters=np.transpose(clusters)
+print(clusters)
+processed_data = np.concatenate(([clusters[:,None], processed_data]),axis=1)
+print(processed_data)
+
+
+
+
+Y=processed_data[:,1]
 X=processed_data[:,2:]
-Group=processed_data[:,1]
+Group=processed_data[:,0]
 group_kfold = StratifiedGroupKFold(n_splits=5,random_state=True,shuffle=True)
+
+
+
+
 # group_kfold.get_n_splits(X, Y, Group)
 print(group_kfold)
 print(len(encoded_columns_learn[0]))
 reg_decision_model=RandomForestRegressor()
 parameters={'min_samples_split': range(70, 80)}
 # #
-n_estimators = [int(x) for x in np.linspace(start = 50 , stop = 1000, num = 200)]
-max_depth = [int(x) for x in np.linspace(100, 2000, num = 200)]
-max_depth.append(None)
+# n_estimators = [int(x) for x in np.linspace(start = 800 , stop = 1000, num = 50)]
+n_estimators = [800, 900, 700, 400, 800]
+max_depth = [100, 200, 300, 400, 500]
+# max_depth = [int(x) for x in np.linspace(1500, 2000, num = 50)]
 Xtrain, Xval, ytrain, yval, grouptrain, grouptest = train_test_split(X, Y, Group,
                                               train_size=0.7, random_state=42, shuffle=True)
-gkf = GroupKFold(n_splits=5,)
+gkf = GroupKFold(n_splits=4)
 rfr = RandomForestRegressor(random_state = 1)
 r_grid = {'n_estimators': n_estimators,
                'max_depth': max_depth}
-tuning_model = RandomizedSearchCV(estimator=rfr, param_distributions=r_grid, n_iter = 10, scoring='neg_mean_absolute_error', cv = 3, verbose=2, random_state=42, n_jobs=-1, return_train_score=True)
+tuning_model = RandomizedSearchCV(estimator=rfr, param_distributions=r_grid, n_iter = 4, scoring='neg_mean_absolute_error', cv = gkf, verbose=2, random_state=42, n_jobs=-1, return_train_score=True)
 tuning_model.fit(Xtrain,ytrain,groups=grouptrain)
 print(tuning_model.best_params_)
 print(tuning_model.best_score_)
@@ -189,12 +217,12 @@ for key,value in results.items():
 
 
 rfr.fit(Xtrain,ytrain)
-y_pred = rfr.best_estimator_.predict(Xval)
+y_pred = tuning_model.best_estimator_.predict(Xval)
 mse = mean_squared_error(yval, y_pred)
 print(mse)
 print(y_pred)
 
-y_pred = rfr.best_estimator_.predict(Xtrain)
+y_pred = tuning_model.best_estimator_.predict(Xtrain)
 mse = mean_squared_error(ytrain, y_pred)
 print(mse)
 print(y_pred)
@@ -248,19 +276,6 @@ print(y_pred)
 # #
 # #
 # #
-# # #Scale data and do k-means classification
-# # # mms = StandardScaler()
-# # # transformed= mms.fit(onehotlabels)
-# # # data_transformed = (transformed)
-# # # Sum_of_squared_distances = []
-# # # kmeans = KMeans(n_clusters=4)
-# # # clusters = kmeans.fit_predict(onehotlabels)
-# # # labels1 = pd.DataFrame(clusters)
-# # # labeledCustomers = pd.concat((onehotlabels,labels1),axis=1)
-# # # labeledCustomers = pd.concat((onehotlabels,labels1),axis=1)
-# # # labeledCustomers = labeledCustomers.rename({0:'labels'},axis=1)
-# # # labeledCustomers.to_csv('labeled_customers.csv')
-# # # cluster_1=labeledCustomers[clusters==0]
-# # # cluster_1=labeledCustomers[clusters==0]
+
 # # #
 # #

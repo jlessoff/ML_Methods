@@ -67,8 +67,6 @@ print(mse_test)
 print(mse_learn)
 
 
-y_pred = gs.best_estimator_.predict(Xval)
-print(confusion_matrix(yval, y_pred))
 
 
 #Plotting curve for test and learning data
