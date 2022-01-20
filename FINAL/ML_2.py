@@ -157,7 +157,7 @@ Xtrain_scaled, Xval_scaled, ytrain, yval, grouptrain, grouptest = train_test_spl
 gkf = GroupKFold(n_splits=4)
 from sklearn.model_selection import GridSearchCV
 rlr=Ridge()
-parameters = {'alpha':[1,2,3,4,5,6,7,8,9,10]}
+parameters = {'alpha':[0.01,0.05,0.1,0.2,0.5,1,2,3,4,5]}
 grid_search = GridSearchCV(estimator = rlr, param_grid = parameters,
                           cv = gkf, n_jobs = -1, verbose = 2)
 grid_search.fit(Xtrain_scaled,ytrain,groups=grouptrain)
