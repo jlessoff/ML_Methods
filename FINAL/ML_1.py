@@ -1,43 +1,46 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import  StandardScaler
-from sklearn import metrics
 import numpy as np
-from sklearn.metrics import mean_squared_error
-
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn import preprocessing
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-import category_encoders
 from sklearn.model_selection import GroupKFold
-from sklearn.metrics import confusion_matrix
-from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
-
-
-
-pd.set_option('display.max_columns', None)
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
 
-#load data
+#load data from provided from class on test and learn data sets
 learn=pd.read_csv("learn_dataset.csv")
 learn_jobs=pd.read_csv("learn_dataset_job.csv")
 learn_sport=pd.read_csv("learn_dataset_sport.csv")
 learn_emp=pd.read_csv("learn_dataset_Emp.csv")
+test=pd.read_csv("test_dataset.csv")
+test_jobs=pd.read_csv("test_dataset_job.csv")
+test_sport=pd.read_csv("test_dataset_sport.csv")
+test_emp=pd.read_csv("test_dataset_Emp.csv")
+
+#load city data
 city_admin=pd.read_csv("city_adm.csv")
 departments=pd.read_csv("departments.csv")
 latlong=pd.read_csv("city_loc.csv")
 citypop=pd.read_csv("city_pop.csv")
 regions=pd.read_csv("regions.csv")
+
+#load clubinformaton
 club=pd.read_csv("code_CLUB.csv")
+
+#load job information
 pcsesemap=pd.read_csv("pcsese2017-map.csv")
 code_job=pd.read_csv('code_Job_42.csv')
 code_job_desc=pd.read_csv('code_job_desc.csv')
+
+#load data on activity rate: EXTERNAL
 activity=pd.read_csv('Data-Table 1.csv')
 activity=activity[['Code',"Taux"]]
 
@@ -57,21 +60,8 @@ learn=pd.merge(learn,code_job,left_on='Job_42',right_on='Code',how='left')
 learn= learn.drop(columns='Code')
 learn=pd.merge(learn,code_job_desc,left_on='job_desc',right_on='Code',how='left')
 learn=pd.merge(learn,pcsesemap,left_on='Code',right_on='N3',how='left')
-#
-learn['club_indicator']= np.where(learn['Categorie'].isna(),0,1)
-# learn['emp_status_indicator']= np.where(learn['ACTIVITY_TYPE']=='type1-1',0,1)
-learn['Is_student']= np.where(learn['Is_student']==False,0,1)
 
-learn=learn.set_index('UID')
-learn= learn.fillna(0)
-#
-#
-
-#import test data
-test=pd.read_csv("test_dataset.csv")
-test_jobs=pd.read_csv("test_dataset_job.csv")
-test_sport=pd.read_csv("test_dataset_sport.csv")
-test_emp=pd.read_csv("test_dataset_Emp.csv")
+#import test data and perform same steps to join
 test=pd.merge(test,test_jobs,on='UID',how='left')
 test=pd.merge(test,test_sport,on='UID',how='left')
 test=pd.merge(test,activity,left_on='INSEE_CODE',right_on='Code',how='left')
@@ -88,194 +78,228 @@ test= test.drop(columns='Code')
 test=pd.merge(test,code_job_desc,left_on='job_desc',right_on='Code',how='left')
 test=pd.merge(test,pcsesemap,left_on='Code',right_on='N3',how='left')
 
+#create variable for 'club' : to indicate whether someone is in a club or not
+learn['club_indicator']= np.where(learn['Categorie'].isna(),0,1)
 test['club_indicator']= np.where(test['Categorie'].isna(),0,1)
-# test['emp_status_indicator']= np.where(test['ACTIVITY_TYPE']=='type1-1',0,1)
-test['Is_student']= np.where(test['Is_student']==False,0,1)
 
 
+UID=test['UID'].to_numpy()
+#set UID as index
+learn=learn.set_index('UID')
 test=test.set_index('UID')
+
+#fill nas with zero: this will give continuous variables a value of 'zero' which makes sense for pay, etc.
 test= test.fillna(0)
+learn= learn.fillna(0)
 
-
-cat_vars=['Nom fédération','Is_student',"Nom catégorie",'Code','N3','N2','N1','INSEE_CODE','dep','FAMILTY_TYPE','Sex','Employee_count','Job_42','DEGREE','ACTIVITY_TYPE','job_condition','Job_category','Terms_of_emp','economic_sector','JOB_DEP','job_desc','Nom de la commune','Nom du département','city_type','REG','Nom de la région','employer_category','Categorie']
-
+#determine and separate cat variables and continuous variables
+cat_vars=['Nom fédération','club_indicator','Is_student',"Nom catégorie",'Code','N3','N2','N1','INSEE_CODE','dep','FAMILTY_TYPE','Sex','Employee_count','Job_42','DEGREE','ACTIVITY_TYPE','job_condition','Job_category','Terms_of_emp','economic_sector','JOB_DEP','job_desc','Nom de la commune','Nom du département','city_type','REG','Nom de la région','employer_category','Categorie']
+#convert categories to string
 learn[cat_vars] = learn[cat_vars].astype(str)
-cont_vars=['Taux','target','ACTIVITY_TYPE','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','X','Y','club_indicator']
-#
-learn['Taux']=learn['Taux'].astype(float)
+test[cat_vars] = test[cat_vars].astype(str)
 
-#make 'na' category
+
+
+#specify continuous variables
+cont_vars=['Taux','ACTIVITY_TYPE','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','X','Y']
+#convert new activity rate variable to float (necessary due to csv)
+learn['Taux']=learn['Taux'].astype(float)
+test['Taux']=test['Taux'].astype(float)
+
+
+#make 'na' category for categorical variables.  this step is not necessary as it will be encoded, but mainly included to clarify what the '0' represent nas
 learn[cat_vars]= np.where(learn[cat_vars]==0,'na',learn[cat_vars])
 test[cat_vars]= np.where(test[cat_vars]==0,'na',test[cat_vars])
 
-#get quick encoding to make correlation heatmap
+#get quick encoding to make correlation heatmap for the learn data to show relationships
 label = preprocessing.LabelEncoder()
-onehotlabels_cat = learn[cat_vars].apply(label.fit_transform)
+label_encode_cat = learn[cat_vars].apply(label.fit_transform)
 plt.figure(figsize=(16, 6))
 
 #
-heatmap = sns.heatmap(onehotlabels_cat.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
-heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
+heatmap = sns.heatmap(label_encode_cat.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
+heatmap.set_title('Correlation Heatmap or Categorical Variables', fontdict={'fontsize':12}, pad=4);
 plt.show()
 #
 #
 onehotlabels_cont = learn[cont_vars].apply(label.fit_transform)
 heatmap = sns.heatmap(onehotlabels_cont.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
-heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
+heatmap.set_title('Correlation Heatmap for Continuous Variables', fontdict={'fontsize':12}, pad=4);
 plt.show()
 #
-# # #drop perfectly correlated variables
-# test= test.drop(columns=['Code','INSEE_CODE','N3','N2','X','Y'])#
-# learn= learn.drop(columns=['Code','INSEE_CODE','N3','N2','X','Y'])#
-#
-# cat_vars=['Nom fédération','Is_student',"Nom catégorie",'N1','dep','FAMILTY_TYPE','Sex','Employee_count','Job_42','DEGREE','ACTIVITY_TYPE','job_condition','Job_category','Terms_of_emp','economic_sector','JOB_DEP','job_desc','Nom de la commune','Nom du département','city_type','REG','Nom de la région','employer_category','Categorie']
-
+# as we are going to one hot encode the variables and end up with many features, we will drop perfectly correlated variables and variables that are highly correlate to eachother (above .9).  as we are one hot encoding, this will reduce computational complexity a lot, while minimally affectingn results
 cat_vars=['Nom fédération','Is_student',"Nom catégorie",'N1','dep','FAMILTY_TYPE','Sex','Employee_count','club_indicator','Job_42','DEGREE','job_condition','Terms_of_emp','economic_sector','JOB_DEP','city_type','REG','Nom de la région','Categorie']
-cont_vars=['target','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','Taux']
-learn[cat_vars] = learn[cat_vars].astype(str)
-learn['Taux']=learn['Taux'].astype(float)
-# onehotlabels_cat = learn[cat_vars].apply(label.fit_transform)
-# onehotlabels_cont = learn[cont_vars].apply(label.fit_transform)
-# #
-# # heatmap = sns.heatmap(onehotlabels_cat.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
-# # heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
-# # plt.show()
-# #
-# #
-# # onehotlabels_cont = learn[cont_vars].apply(label.fit_transform)
-# # heatmap = sns.heatmap(onehotlabels_cont.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
-# # heatmap.set_title('Correlation Heatmap', fontdict={'fontsize':5}, pad=4);
-# # plt.show()
-#
-#
-# #
-# #
-#
-# #
-#
-# # #save df
-# # learn.to_csv('learn.csv')
-# # # create encoding
-#
+cont_vars=['AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','Taux']
+target=['target']
+feature_names=['Group','AGE_2018','Working_hours','Pay','inhabitants','Lat','Long','Taux','Nom fédération','Is_student',"Nom catégorie",'N1','dep','FAMILTY_TYPE','Sex','Employee_count','club_indicator','Job_42','DEGREE','job_condition','Terms_of_emp','economic_sector','JOB_DEP','city_type','REG','Nom de la région','Categorie']
 
+#create cont variables for test, as they do not contain target var
+
+#convert cat to string
+learn[cat_vars] = learn[cat_vars].astype(str)
+test[cat_vars] = test[cat_vars].astype(str)
+#
+test_cat=test[cat_vars]
+learn_cat=learn[cat_vars]
+
+test_con=test[cont_vars]
+learn_con=learn[cont_vars]
+
+target_learn=learn[target].to_numpy()
+
+#convert taux to float
+learn['Taux']=learn['Taux'].astype(float)
+test['Taux']=test['Taux'].astype(float)
+
+# # # create encoding
 
 OH_encoder = OneHotEncoder(sparse=False ,handle_unknown='ignore')
-encoded_columns_learn =    OH_encoder.fit_transform(learn[cat_vars])
-# encoded_columns_test =    OH_encoder.transform(test[cat_vars])
-cont_learn=learn[cont_vars].to_numpy()
+encoded_columns_learn =    OH_encoder.fit_transform(learn_cat)
+encoded_columns_test =    OH_encoder.transform(test_cat)
+cont_learn=learn_con.to_numpy()
+cont_test=test_con.to_numpy()
+
+
+#scale continuous data for kmeans, knn, ridge
+mms = StandardScaler()
+cont_learn_scaled= mms.fit_transform(cont_learn)
+cont_test_scaled= mms.transform(cont_test)
+
+processed_data_scaled = np.concatenate([cont_learn_scaled, encoded_columns_learn], axis=1)
+processed_data_test_scaled=np.concatenate([cont_test_scaled, encoded_columns_test], axis=1)
+#concat non scaled data
 processed_data = np.concatenate([cont_learn, encoded_columns_learn], axis=1)
-print(processed_data)
+processed_data_test = np.concatenate([cont_test, encoded_columns_test], axis=1)
 
 
 # Scale data and do k-means classification
-mms = StandardScaler()
-transformed= mms.fit(processed_data)
-data_transformed = (transformed)
 Sum_of_squared_distances = []
 kmeans = KMeans(n_clusters=4,random_state=1)
-clusters = kmeans.fit_predict(processed_data)
+clusters = kmeans.fit_predict(processed_data_scaled)
+clusters_test=kmeans.predict(processed_data_test_scaled)
 # clusters=np.transpose(clusters)
-print(clusters)
 processed_data = np.concatenate(([clusters[:,None], processed_data]),axis=1)
-print(processed_data)
-
-
-
-
-Y=processed_data[:,1]
-X=processed_data[:,2:]
+processed_data_test = np.concatenate(([clusters[:,None], processed_data_test]),axis=1)
+#
+#
+#
+# #extract x,y,group for learn
+Y=target_learn
+X=processed_data[:,0:]
+X_scaled=processed_data_scaled[:,0:]
 Group=processed_data[:,0]
-group_kfold = StratifiedGroupKFold(n_splits=5,random_state=True,shuffle=True)
 
+# #extract x,y,group for test
+X_test=processed_data_test[:,0:]
+X_test_scaled=processed_data_test_scaled[:,0:]
 
+##Do Gridsearchcv to narrow down estmators; we found best estimator:  we found the best to be:
+#(random_state = 1,bootstrap= True, max_depth= 500, max_features= 400, min_samples_leaf= 1, min_samples_split= 2, n_estimators= 625)
 
-
-# group_kfold.get_n_splits(X, Y, Group)
-print(group_kfold)
-print(len(encoded_columns_learn[0]))
-reg_decision_model=RandomForestRegressor()
-parameters={'min_samples_split': range(70, 80)}
-# #
-# n_estimators = [int(x) for x in np.linspace(start = 800 , stop = 1000, num = 50)]
-n_estimators = [800, 900, 700, 400, 800]
-max_depth = [100, 200, 300, 400, 500]
-# max_depth = [int(x) for x in np.linspace(1500, 2000, num = 50)]
 Xtrain, Xval, ytrain, yval, grouptrain, grouptest = train_test_split(X, Y, Group,
                                               train_size=0.7, random_state=42, shuffle=True)
+
+#use group k fold based on the k-means clusters found previously
+# gkf = GroupKFold(n_splits=4)
+# rfr = RandomForestRegressor(random_state = 1)
+# param_grid = {
+#     'bootstrap': [True],
+#     'max_depth': [400, 500, 300],
+#     'max_features': [400, 450],
+#     'min_samples_leaf': [1, 5],
+#     'min_samples_split': [2, 4],
+#     'n_estimators': [550, 600, 625]}
+# tuning_model = GridSearchCV(estimator=rfr, param_distributions=param_grid, scoring='neg_mean_absolute_error', cv = gkf, verbose=2, random_state=42, n_jobs=-1, return_train_score=True)
+# tuning_model.fit(Xtrain,ytrain,groups=grouptrain)
+# print(tuning_model.best_params_)
+# print(tuning_model.best_score_)
+# results = tuning_model.cv_results_
+# for key,value in results.items():
+#     print(key, value)
+
+rfr = RandomForestRegressor(random_state = 1,bootstrap= True, max_depth= 500, max_features= 400, min_samples_leaf= 1, min_samples_split= 2, n_estimators= 625)
+rfr.fit(Xtrain,ytrain)
+y_pred = rfr.predict(Xval)
+mse = mean_squared_error(yval, y_pred)
+r2=r2_score(y_true=yval,y_pred=y_pred)
+print('RF test r2',r2)
+print('RF test mse', mse)
+
+
+
+rfr.fit(X,Y.values.ravel())
+y_pred = rfr.predict(X_test)
+y_pred=y_pred.tolist()
+# prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
+# prediction.to_csv('rfrprediction.csv')
+print('Random Forest Prediction',y_pred)
+
+
+#
+#
+Xtrain_scaled, Xval_scaled, ytrain, yval, grouptrain, grouptest = train_test_split(X, Y, Group,
+                                              train_size=0.7, random_state=43, shuffle=True)
+
+
 gkf = GroupKFold(n_splits=4)
-rfr = RandomForestRegressor(random_state = 1)
-r_grid = {'n_estimators': n_estimators,
-               'max_depth': max_depth}
-tuning_model = RandomizedSearchCV(estimator=rfr, param_distributions=r_grid, n_iter = 4, scoring='neg_mean_absolute_error', cv = gkf, verbose=2, random_state=42, n_jobs=-1, return_train_score=True)
-tuning_model.fit(Xtrain,ytrain,groups=grouptrain)
-print(tuning_model.best_params_)
-print(tuning_model.best_score_)
-results = tuning_model.cv_results_
-for key,value in results.items():
+from sklearn.model_selection import GridSearchCV
+rlr=Ridge()
+parameters = {'alpha':list(range(1, 10))}
+grid_search = GridSearchCV(estimator = rlr, param_grid = parameters,
+                          cv = gkf, n_jobs = -1, verbose = 2, scoring='neg_mean_squared_error')
+grid_search.fit(Xtrain_scaled,ytrain,groups=grouptrain)
+
+print(grid_search.best_params_)
+print(grid_search.best_score_)
+
+rlr=Ridge(alpha=6)
+rlr.fit(Xtrain_scaled,ytrain)
+y_pred = rlr.predict(Xval_scaled)
+mse = mean_squared_error(yval, y_pred)
+r2=r2_score(y_true=yval,y_pred=y_pred)
+print('mse test cv',mse)
+print('mse test r2',r2)
+
+rlr.fit(X_scaled,Y)
+test_id=test.index.tolist()
+y_pred = rlr.predict(X_test_scaled)
+y_pred=y_pred.tolist()
+# prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
+# prediction.to_csv('ridgeprediction.csv')
+print('ridge pred',y_pred)
+
+
+
+####
+knn = KNeighborsRegressor()
+k_range = list(range(1, 10))
+param_grid = dict(n_neighbors=k_range)
+rscv = GridSearchCV(knn, param_grid,  refit=True, cv=gkf, verbose=0)
+
+# fitting the model for grid search
+grid_search = rscv.fit(Xtrain_scaled, ytrain, groups=grouptrain)
+print(rscv.best_params_)
+print(rscv.best_score_)
+results = rscv.cv_results_
+for key, value in results.items():
     print(key, value)
 
-
-
-rfr.fit(Xtrain,ytrain)
-y_pred = tuning_model.best_estimator_.predict(Xval)
+knn = KNeighborsRegressor(n_neighbors=9)
+knn.fit(Xtrain_scaled, ytrain)
+y_pred = knn.predict(Xval_scaled)
 mse = mean_squared_error(yval, y_pred)
-print(mse)
-print(y_pred)
+r2=r2_score(y_true=yval,y_pred=y_pred)
+print('mse for knn test',mse)
+print('r2 for knn test',r2)
 
-y_pred = tuning_model.best_estimator_.predict(Xtrain)
+y_pred = knn.predict(Xtrain_scaled)
 mse = mean_squared_error(ytrain, y_pred)
 print(mse)
 print(y_pred)
 
-
-
-
-
-# regr_1=DecisionTreeRegressor(min_samples_split=10,max_depth=30)
-# regr_1.fit(X,Y)
-# y_1 = regr_1.predict(X)
-# print(Y)
-# print(y_1)
-
-#
-# ##CREATE ONE HOT ENCODING
-# # print(test)
-# #
-# #
-# # print(learn.index)
-# #
-#
-# #
-# #
-#
-# #
-# #
-# #
-#
-#
-# #
-# # # missing values
-# # learn.isna().sum().reset_index(name="n").plot.bar(x='index', y='n', rot=45)
-# # plt.ylim([0, 50000])
-# #
-# # plt.show()
-# # # print(learn['UID'].isna().sum())
-# # na_group=(learn[[
-# #        'job_condition', 'Job_category', 'Pay', 'Employee_count',
-# #        'Terms_of_emp', 'economic_sector', 'JOB_DEP', 'employer_category',
-# #        'job_desc']].isna())
-# #
-# # na= learn.groupby('job_condition', dropna=False).count()
-# #
-# # club= learn.groupby('job_condition', dropna=False)['CLUB'].count()
-# # group= learn.groupby('job_condition', dropna=False)['UID'].count()
-# # # print(club,group)
-# # # print((club/group))
-# #
-# #
-# #
-# #
-# #
-
-# # #
-# #
+knn.fit(X_scaled, Y)
+y_pred = knn.predict(X_test_scaled)
+y_pred=y_pred.tolist()
+# prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
+# prediction.to_csv('knnprediction.csv')
+print('knn pred',y_pred)

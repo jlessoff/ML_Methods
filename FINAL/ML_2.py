@@ -7,6 +7,8 @@ from sklearn.preprocessing import  StandardScaler
 from sklearn import metrics
 import numpy as np
 from sklearn.metrics import mean_squared_error
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import r2_score
 
 from sklearn import preprocessing
 from sklearn.pipeline import Pipeline
@@ -22,22 +24,9 @@ from sklearn.linear_model import RidgeCV
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import cross_val_score
-
-
-
-pd.set_option('display.max_columns', None)
 from sklearn.preprocessing import OneHotEncoder
 
-def evaluate(model, test_features, test_labels):
-    predictions = model.predict(test_features)
-    errors = abs(predictions - test_labels)
-    mape = 100 * np.mean(errors / test_labels)
-    accuracy = 100 - mape
-    print('Model Performance')
-    print('Average Error: {:0.4f} degrees.'.format(np.mean(errors)))
-    print('Accuracy = {:0.2f}%.'.format(accuracy))
 
-    return accuracy
 #load data
 learn=pd.read_csv("learn_dataset.csv")
 learn_jobs=pd.read_csv("learn_dataset_job.csv")
@@ -128,20 +117,44 @@ learn[cat_vars] = learn[cat_vars].astype(str)
 learn['Taux']=learn['Taux'].astype(float)
 
 # # Scale data and do k-means classification
+
 mms = StandardScaler()
 OH_encoder = OneHotEncoder(sparse=False ,handle_unknown='ignore')
 encoded_columns_learn =    OH_encoder.fit_transform(learn[cat_vars])
+encoded_columns_learn_test =    OH_encoder.transform(learn_test[cat_vars])
+
 cont_learn=learn[cont_vars].to_numpy()
 cont_learn_scaled= mms.fit_transform(cont_learn)
+
+
 processed_data_scaled = np.concatenate([cont_learn_scaled, encoded_columns_learn], axis=1)
+
+
 processed_data = np.concatenate([cont_learn, encoded_columns_learn], axis=1)
+processed_data_test = np.concatenate([cont_learn_test, encoded_columns_learn_test], axis=1)
+
+
 kmeans = KMeans(n_clusters=4,random_state=1)
 clusters = kmeans.fit_predict(processed_data_scaled)
+clusters_test = kmeans.predict(processed_data_scaled_test)
+
 processed_data = np.concatenate(([clusters[:,None], processed_data]),axis=1)
+processed_data_test = np.concatenate(([clusters_test[:,None], processed_data_test]),axis=1)
+
+
 Group=processed_data[:,0]
+Group_test=processed_data_test[:,0]
+
+
 X_scaled=processed_data_scaled[:,2:]
+X_scaled_test=processed_data_scaled_test[:,2:]
+
+X_scaled = np.concatenate(([clusters[:,None], X_scaled]),axis=1)
+X_scaled_test = np.concatenate(([clusters_test[:,None], X_scaled_test]),axis=1)
+
 Y=processed_data[:,1]
-group_kfold_scaled = StratifiedGroupKFold(n_splits=5,random_state=True,shuffle=True)
+Y_test=processed_data_test[:,1]
+
 
 #
 # # Xtrain, Xval, ytrain, yval, grouptrain, grouptest = train_test_split(X, Y, Group,
@@ -159,22 +172,63 @@ from sklearn.model_selection import GridSearchCV
 rlr=Ridge()
 parameters = {'alpha':[1,2,3,4,5,6,7,8,9,10]}
 grid_search = GridSearchCV(estimator = rlr, param_grid = parameters,
-                          cv = gkf, n_jobs = -1, verbose = 2)
+                          cv = gkf, n_jobs = -1, verbose = 2, scoring='neg_mean_squared_error')
 grid_search.fit(Xtrain_scaled,ytrain,groups=grouptrain)
 print(grid_search.best_params_)
 print(grid_search.best_score_)
 #
 y_pred = grid_search.best_estimator_.predict(Xval_scaled)
 mse = mean_squared_error(yval, y_pred)
-print(mse)
-print(y_pred)
+r2=r2_score(y_true=yval,y_pred=y_pred)
+
+print('mse test cv',mse)
+print('mse test r2',r2)
+
 
 y_pred = grid_search.best_estimator_.predict(Xtrain_scaled)
 mse = mean_squared_error(ytrain, y_pred)
+r2=r2_score(y_true=ytrain,y_pred=y_pred)
+print('mse train',mse)
+print('r2 train',r2)
+
+
+
+y_pred = grid_search.best_estimator_.predict(X_scaled_test)
+mse = mean_squared_error(Y_test, y_pred)
+r2=r2_score(y_true=Y_test,y_pred=y_pred)
+print('mse TEST',mse)
+print('r2 TEST',r2)
+
+
+best_random = grid_search.best_estimator_
+n_estimators = [int(x) for x in np.linspace(start = 800 , stop = 1000, num = 50)]
+
+
+####
+knn = KNeighborsRegressor()
+k_range = list(range(1, 10))
+param_grid = dict(n_neighbors=k_range)
+rscv = GridSearchCV(knn, param_grid,  refit=True, cv=gkf, verbose=0)
+
+# fitting the model for grid search
+grid_search = rscv.fit(Xtrain_scaled, ytrain, groups=grouptrain)
+print(rscv.best_params_)
+print(rscv.best_score_)
+results = rscv.cv_results_
+for key, value in results.items():
+    print(key, value)
+
+y_pred = rscv.best_estimator_.predict(Xval_scaled)
+mse = mean_squared_error(yval, y_pred)
 print(mse)
 print(y_pred)
-print(ytrain)
-#
-best_random = grid_search.best_estimator_
-random_accuracy = evaluate(best_random, Xval_scaled, yval)
-n_estimators = [int(x) for x in np.linspace(start = 800 , stop = 1000, num = 50)]
+
+y_pred = rscv.best_estimator_.predict(Xtrain_scaled)
+mse = mean_squared_error(ytrain, y_pred)
+print(mse)
+print(y_pred)
+
+y_pred = rscv.best_estimator_.predict(X_scaled_test)
+mse = mean_squared_error(Y_test, y_pred)
+print(mse)
+print(y_pred)
