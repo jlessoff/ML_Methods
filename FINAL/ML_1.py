@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import  StandardScaler
 import numpy as np
+from sklearn import metrics
+from sklearn.impute import KNNImputer
+
 from sklearn.model_selection import RandomizedSearchCV
 from numpy import ravel
 from sklearn.neighbors import KNeighborsRegressor
@@ -64,6 +67,7 @@ learn=pd.merge(learn,code_job_desc,left_on='job_desc',right_on='Code',how='left'
 learn=pd.merge(learn,pcsesemap,left_on='Code',right_on='N3',how='left')
 learn.rename(columns={"Taux d'activité par tranche d'âge 2018_x000D_\nEnsemble":"Taux"},inplace=True)
 
+
 #import test data and perform same steps to join
 test=pd.merge(test,test_jobs,on='UID',how='left')
 test=pd.merge(test,test_sport,on='UID',how='left')
@@ -91,7 +95,17 @@ UID=test['UID'].to_numpy()
 learn=learn.set_index('UID')
 test=test.set_index('UID')
 
+
+#look at na
+learn.isna().sum().reset_index(name="n").plot.bar(x='index', y='n', rot=45)
+plt.ylim([0, 50000])
+plt.savefig('na_plot.png')
+
+
 #fill nas with zero: this will give continuous variables a value of 'zero' which makes sense for pay, etc.
+print(learn['Taux'].mean())
+learn['Taux']=learn['Taux'].fillna(74.21852281764991)
+test['Taux']=test['Taux'].fillna(74.21852281764991)
 test= test.fillna(0)
 learn= learn.fillna(0)
 
@@ -114,6 +128,8 @@ test['Taux']=test['Taux'].astype(float)
 learn[cat_vars]= np.where(learn[cat_vars]==0,'na',learn[cat_vars])
 test[cat_vars]= np.where(test[cat_vars]==0,'na',test[cat_vars])
 
+
+
 #get quick encoding to make correlation heatmap for the learn data to show relationships
 label = preprocessing.LabelEncoder()
 label_encode_cat = learn[cat_vars].apply(label.fit_transform)
@@ -123,12 +139,16 @@ plt.figure(figsize=(16, 6))
 heatmap = sns.heatmap(label_encode_cat.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
 heatmap.set_title('Correlation Heatmap or Categorical Variables', fontdict={'fontsize':12}, pad=4);
 plt.show()
+plt.savefig('categorical_heatmap.png')
+
 #
 #
 onehotlabels_cont = learn[cont_vars].apply(label.fit_transform)
 heatmap = sns.heatmap(onehotlabels_cont.corr(), vmin=-1, vmax=1, annot=True, cmap='BrBG')
 heatmap.set_title('Correlation Heatmap for Continuous Variables', fontdict={'fontsize':12}, pad=4);
 plt.show()
+plt.savefig('continuous_heatmap.png')
+
 #
 # as we are going to one hot encode the variables and end up with many features, we will drop perfectly correlated variables and variables that are highly correlate to eachother (above .9).  as we are one hot encoding, this will reduce computational complexity a lot, while minimally affectingn results
 cat_vars=['Nom fédération','Is_student',"Nom catégorie",'N1','dep','FAMILTY_TYPE','Sex','Employee_count','club_indicator','Job_42','DEGREE','job_condition','Terms_of_emp','economic_sector','JOB_DEP','city_type','REG','Nom de la région','Categorie']
@@ -175,9 +195,26 @@ processed_data = np.concatenate([cont_learn, encoded_columns_learn], axis=1)
 processed_data_test = np.concatenate([cont_test, encoded_columns_test], axis=1)
 
 
-# Scale data and do k-means classification
+# find k value (ending with k=4)
+K = range(2,10)
+CS_scores = []
 Sum_of_squared_distances = []
-kmeans = KMeans(n_clusters=4,random_state=1)
+for k in K:
+    km = KMeans(n_clusters=k, init='k-means++', random_state=1)
+    cluster_found = km.fit_predict(processed_data_scaled)
+    Sum_of_squared_distances.append(km.inertia_)
+    CS_scores.append(metrics.calinski_harabasz_score(processed_data_scaled, km.labels_))
+plt.plot(K, Sum_of_squared_distances, 'bx-')
+plt.xlabel('k')
+plt.title('Find Optimal k using elbow')
+plt.savefig('elbow_score.png')
+plt.show()
+
+
+
+
+# Scale data and do k-means classification
+kmeans = KMeans(n_clusters=6,random_state=1)
 clusters = kmeans.fit_predict(processed_data_scaled)
 clusters_test=kmeans.predict(processed_data_test_scaled)
 # clusters=np.transpose(clusters)
@@ -203,7 +240,7 @@ Xtrain, Xval, ytrain, yval, grouptrain, grouptest = train_test_split(X, Y, Group
                                               train_size=0.7, random_state=42, shuffle=True)
 
 #use group k fold based on the k-means clusters found previously
-gkf = GroupKFold(n_splits=4)
+gkf = GroupKFold(n_splits=6)
 rfr = RandomForestRegressor(random_state = 1)
 param_grid = {
     'bootstrap': [True],
@@ -236,7 +273,6 @@ y_pred = rfr.predict(X_test)
 y_pred=y_pred.tolist()
 prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
 prediction.to_csv('rfrprediction.csv')
-# print('Random Forest Prediction',y_pred)
 
 
 #
@@ -245,7 +281,7 @@ Xtrain_scaled, Xval_scaled, ytrain, yval, grouptrain, grouptest = train_test_spl
                                               train_size=0.7, random_state=43, shuffle=True)
 
 
-gkf = GroupKFold(n_splits=4)
+gkf = GroupKFold(n_splits=6)
 from sklearn.model_selection import GridSearchCV
 rlr=Ridge()
 parameters = {'alpha':list(range(1, 10))}
