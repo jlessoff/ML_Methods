@@ -244,11 +244,11 @@ gkf = GroupKFold(n_splits=6)
 rfr = RandomForestRegressor(random_state = 1)
 param_grid = {
     'bootstrap': [True],
-    'max_depth': [500],
-    'max_features': [400],
-    'min_samples_leaf': [1],
-    'min_samples_split': [2],
-    'n_estimators': [625]}
+    'max_depth': [400, 500, 300],
+    'max_features': [400, 450],
+    'min_samples_leaf': [1, 5],
+    'min_samples_split': [2, 4],
+    'n_estimators': [550, 600, 625]}
 
 tuning_model = RandomizedSearchCV(estimator=rfr, n_iter=1,param_distributions=param_grid, scoring='neg_mean_absolute_error', cv = gkf, verbose=2, random_state=42, n_jobs=-1, return_train_score=True)
 tuning_model.fit(Xtrain,ytrain.ravel(),groups=grouptrain)
