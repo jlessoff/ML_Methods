@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import  StandardScaler
 import numpy as np
+from sklearn.model_selection import RandomizedSearchCV
+from numpy import ravel
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn import preprocessing
 from sklearn.model_selection import GroupKFold
@@ -41,15 +43,15 @@ code_job=pd.read_csv('code_Job_42.csv')
 code_job_desc=pd.read_csv('code_job_desc.csv')
 
 #load data on activity rate: EXTERNAL
-activity=pd.read_csv('Data-Table 1.csv')
-activity=activity[['Code',"Taux"]]
+activity=pd.read_excel('insee_data.xlsx',sheet_name='Data',skiprows=[0,1,2],usecols='A,I',index_col=0)
+activity.index.rename('INSEE_CODE',inplace=True)
+
 
 #merge data to get all fields relating to jobs,sports, city information
 learn=pd.merge(learn,learn_jobs,on='UID',how='left')
 learn=pd.merge(learn,learn_sport,on='UID',how='left')
 learn=pd.merge(learn,city_admin,on='INSEE_CODE',how='left')
-learn=pd.merge(learn,activity,left_on='INSEE_CODE',right_on='Code',how='left')
-learn= learn.drop(columns='Code')
+learn=pd.merge(learn,activity,on='INSEE_CODE',how='left')
 learn=pd.merge(learn,departments,on='dep',how='left')
 learn=pd.merge(learn,regions,on='REG',how='left')
 learn=pd.merge(learn,latlong,on='INSEE_CODE',how='left')
@@ -60,12 +62,12 @@ learn=pd.merge(learn,code_job,left_on='Job_42',right_on='Code',how='left')
 learn= learn.drop(columns='Code')
 learn=pd.merge(learn,code_job_desc,left_on='job_desc',right_on='Code',how='left')
 learn=pd.merge(learn,pcsesemap,left_on='Code',right_on='N3',how='left')
+learn.rename(columns={"Taux d'activité par tranche d'âge 2018_x000D_\nEnsemble":"Taux"},inplace=True)
 
 #import test data and perform same steps to join
 test=pd.merge(test,test_jobs,on='UID',how='left')
 test=pd.merge(test,test_sport,on='UID',how='left')
-test=pd.merge(test,activity,left_on='INSEE_CODE',right_on='Code',how='left')
-test= test.drop(columns='Code')
+test=pd.merge(test,activity,on='INSEE_CODE',how='left')
 test=pd.merge(test,city_admin,on='INSEE_CODE',how='left')
 test=pd.merge(test,departments,on='dep',how='left')
 test=pd.merge(test,regions,on='REG',how='left')
@@ -77,6 +79,7 @@ test=pd.merge(test,code_job,left_on='Job_42',right_on='Code',how='left')
 test= test.drop(columns='Code')
 test=pd.merge(test,code_job_desc,left_on='job_desc',right_on='Code',how='left')
 test=pd.merge(test,pcsesemap,left_on='Code',right_on='N3',how='left')
+test.rename(columns={"Taux d'activité par tranche d'âge 2018_x000D_\nEnsemble":"Taux"},inplace=True)
 
 #create variable for 'club' : to indicate whether someone is in a club or not
 learn['club_indicator']= np.where(learn['Categorie'].isna(),0,1)
@@ -200,22 +203,23 @@ Xtrain, Xval, ytrain, yval, grouptrain, grouptest = train_test_split(X, Y, Group
                                               train_size=0.7, random_state=42, shuffle=True)
 
 #use group k fold based on the k-means clusters found previously
-# gkf = GroupKFold(n_splits=4)
-# rfr = RandomForestRegressor(random_state = 1)
-# param_grid = {
-#     'bootstrap': [True],
-#     'max_depth': [400, 500, 300],
-#     'max_features': [400, 450],
-#     'min_samples_leaf': [1, 5],
-#     'min_samples_split': [2, 4],
-#     'n_estimators': [550, 600, 625]}
-# tuning_model = GridSearchCV(estimator=rfr, param_distributions=param_grid, scoring='neg_mean_absolute_error', cv = gkf, verbose=2, random_state=42, n_jobs=-1, return_train_score=True)
-# tuning_model.fit(Xtrain,ytrain,groups=grouptrain)
-# print(tuning_model.best_params_)
-# print(tuning_model.best_score_)
-# results = tuning_model.cv_results_
-# for key,value in results.items():
-#     print(key, value)
+gkf = GroupKFold(n_splits=4)
+rfr = RandomForestRegressor(random_state = 1)
+param_grid = {
+    'bootstrap': [True],
+    'max_depth': [500],
+    'max_features': [400],
+    'min_samples_leaf': [1],
+    'min_samples_split': [2],
+    'n_estimators': [625]}
+
+tuning_model = RandomizedSearchCV(estimator=rfr, n_iter=1,param_distributions=param_grid, scoring='neg_mean_absolute_error', cv = gkf, verbose=2, random_state=42, n_jobs=-1, return_train_score=True)
+tuning_model.fit(Xtrain,ytrain.ravel(),groups=grouptrain)
+print(tuning_model.best_params_)
+print(tuning_model.best_score_)
+results = tuning_model.cv_results_
+for key,value in results.items():
+    print(key, value)
 
 rfr = RandomForestRegressor(random_state = 1,bootstrap= True, max_depth= 500, max_features= 400, min_samples_leaf= 1, min_samples_split= 2, n_estimators= 625)
 rfr.fit(Xtrain,ytrain)
@@ -227,12 +231,12 @@ print('RF test mse', mse)
 
 
 
-rfr.fit(X,Y.values.ravel())
+rfr.fit(X,Y)
 y_pred = rfr.predict(X_test)
 y_pred=y_pred.tolist()
-# prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
-# prediction.to_csv('rfrprediction.csv')
-print('Random Forest Prediction',y_pred)
+prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
+prediction.to_csv('rfrprediction.csv')
+# print('Random Forest Prediction',y_pred)
 
 
 #
@@ -264,9 +268,8 @@ rlr.fit(X_scaled,Y)
 test_id=test.index.tolist()
 y_pred = rlr.predict(X_test_scaled)
 y_pred=y_pred.tolist()
-# prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
-# prediction.to_csv('ridgeprediction.csv')
-print('ridge pred',y_pred)
+prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
+prediction.to_csv('ridgeprediction.csv')
 
 
 
@@ -295,11 +298,9 @@ print('r2 for knn test',r2)
 y_pred = knn.predict(Xtrain_scaled)
 mse = mean_squared_error(ytrain, y_pred)
 print(mse)
-print(y_pred)
 
 knn.fit(X_scaled, Y)
 y_pred = knn.predict(X_test_scaled)
 y_pred=y_pred.tolist()
-# prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
-# prediction.to_csv('knnprediction.csv')
-print('knn pred',y_pred)
+prediction=pd.DataFrame(y_pred, UID,columns=['Y_PRED'])
+prediction.to_csv('knnprediction.csv')
