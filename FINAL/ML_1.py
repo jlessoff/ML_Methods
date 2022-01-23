@@ -314,7 +314,7 @@ Xtrain_scaled, Xval_scaled, ytrain, yval, grouptrain, grouptest = train_test_spl
 
 #FIND BEST ALPHA FOR RIDGE
 rlr=Ridge()
-parameters = {'alpha':list(range(1, 20))}
+parameters = {'alpha':list(range(1, 15))}
 grid_search = GridSearchCV(estimator = rlr, param_grid = parameters,
                           cv = gkf, n_jobs = -1, verbose = 2, scoring='neg_mean_squared_error')
 grid_search.fit(Xtrain_scaled,ytrain,groups=grouptrain)
