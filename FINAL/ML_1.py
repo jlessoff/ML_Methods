@@ -5,10 +5,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import  StandardScaler
 import numpy as np
 from sklearn import metrics
-from sklearn.impute import KNNImputer
-
 from sklearn.model_selection import RandomizedSearchCV
-from numpy import ravel
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn import preprocessing
 from sklearn.model_selection import GroupKFold
